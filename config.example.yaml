@@ -1,0 +1,36 @@
+# ============================================================
+# NetSuite vs Excel 库存对比系统 - 配置文件
+# 复制此文件为 config.yaml 并填入真实值
+# ============================================================
+
+netsuite:
+  account_id: "YOUR_ACCOUNT_ID"          # Setup > Company > Company Information
+  consumer_key: "YOUR_CONSUMER_KEY"      # Integration Record 创建后获取
+  consumer_secret: "YOUR_CONSUMER_SECRET"
+  token_id: "YOUR_TOKEN_ID"              # Access Token 创建后获取
+  token_secret: "YOUR_TOKEN_SECRET"
+
+  # NetSuite 中的 Location 名称（必须与系统内名称完全一致）
+  locations:
+    china: "China - Jiaxing"
+    italy: "Italy - Grandate"
+
+# 意大利库存 - Google Sheets
+google_sheets:
+  credentials_file: "service_account.json"   # Google Service Account JSON 文件路径
+  spreadsheet_id: "YOUR_SPREADSHEET_ID"      # Google Sheets URL 中的 ID
+  sheet_name: "Sheet1"                       # 要读取的 Sheet 名称（留空则读取第一个 Sheet）
+  name_column: 2                             # Display Name 所在列号（B列=2）
+  quantity_column: 3                         # 数量所在列号（C列=3）
+  header_rows: 1                             # 表头行数
+
+# 中国库存 - WPS Docs (通过下载链接)
+wps:
+  download_url: "https://your-wps-share-link"  # WPS 文档的下载链接
+  name_column: 2                               # Display Name 所在列号（B列=2）
+  quantity_column: 3                           # 数量所在列号（C列=3）
+  header_rows: 1                               # 表头行数
+
+# 飞书通知
+feishu:
+  webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_WEBHOOK_KEY"

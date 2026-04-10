@@ -1,0 +1,19 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Configuration and Credentials (CRITICAL TO IGNORE)
+config.yaml
+service_account.json
+*.json
+
+# Data and Reports
+*.xlsx
+*.xls
+*.csv
+
+# macOS
+.DS_Store
