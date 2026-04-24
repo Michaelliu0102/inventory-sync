@@ -24,6 +24,9 @@ def write_results_to_bitable(config: dict, results):
     from feishu_reader import get_tenant_access_token
     token = get_tenant_access_token(app_id, app_secret)
 
+    # 在写入新数据前，先清空整张表的历史数据
+    _clear_all_records(app_token, table_id, token)
+
     # 准备写入的数据
     date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     records_to_insert = []
@@ -77,3 +80,48 @@ def write_results_to_bitable(config: dict, results):
                 logger.info(f"  成功写入批次 {i+1} ~ {i+len(batch)}")
 
     logger.info("成功完成所有云端数据的导入！")
+
+
+def _clear_all_records(app_token: str, table_id: str, token: str):
+    """清空整张表的所有数据"""
+    url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records"
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    # 1. 循环获取现存所有的记录 ID (因为单页最多只能返回 500)
+    record_ids = []
+    page_token = ""
+    while True:
+        params = {"page_size": 500}
+        if page_token:
+            params["page_token"] = page_token
+            
+        resp = requests.get(url, headers=headers, params=params, timeout=30)
+        if resp.status_code != 200:
+            logger.error(f"无法读取现有表格数据，跳过清理流程: {resp.text}")
+            return
+            
+        data = resp.json().get("data", {})
+        items = data.get("items", [])
+        record_ids.extend([item["record_id"] for item in items])
+        
+        if not data.get("has_more"):
+            break
+        page_token = data.get("page_token")
+        
+    if not record_ids:
+        logger.info("云表格已经是空的，不需要排空清理。")
+        return
+        
+    # 2. 分批猛烈删除旧记录
+    delete_url = f"{url}/batch_delete"
+    logger.info(f"🧹 开始做大扫除：发现 {len(record_ids)} 条旧数据，开始清理清空...")
+    
+    for i in range(0, len(record_ids), 500):
+        batch = record_ids[i:i+500]
+        resp = requests.post(delete_url, headers=headers, json={"records": batch}, timeout=30)
+        if resp.status_code != 200:
+            logger.error(f"删除失败 (Chunk {i}): {resp.text}")
+        else:
+            logger.info(f"  扫除完毕批次 {i+1} ~ {i+len(batch)}")
+            
+    logger.info("✅ 旧数据大扫除完毕！一张干净的白纸准备就绪。")
