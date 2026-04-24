@@ -69,21 +69,34 @@ def compare(
         CompareResult
     """
     diffs = []
-    all_names = set(netsuite_inv.keys()) | set(excel_inv.keys())
+    
+    # 将字典的 key 全部转为大写，以实现大小写不敏感匹配 (比如 J01 和 j01 会被判定为同一个 SKU)
+    ns_inv_upper = {k.upper(): v for k, v in netsuite_inv.items()}
+    ex_inv_upper = {k.upper(): v for k, v in excel_inv.items()}
+    
+    # 保留它原本的名字用于最终的 Excel 报告显示（优先保留 NetSuite 里的原来写法）
+    original_names = {}
+    for k in excel_inv.keys():
+        original_names[k.upper()] = k
+    for k in netsuite_inv.keys():
+        original_names[k.upper()] = k
 
-    for name in sorted(all_names):
-        ns_qty = netsuite_inv.get(name)
-        ex_qty = excel_inv.get(name)
+    all_names_upper = set(ns_inv_upper.keys()) | set(ex_inv_upper.keys())
+
+    for upper_name in sorted(all_names_upper):
+        ns_qty = ns_inv_upper.get(upper_name)
+        ex_qty = ex_inv_upper.get(upper_name)
+        disp_name = original_names[upper_name]
 
         if ns_qty is not None and ex_qty is not None:
             if abs(ns_qty - ex_qty) >= 1.0:  # 重点容错：差异小于1（即只有小数部分不同）时不报错
-                diffs.append(DiffItem(name, ns_qty, ex_qty, "mismatch"))
+                diffs.append(DiffItem(disp_name, ns_qty, ex_qty, "mismatch"))
         elif ns_qty is not None:
             if abs(ns_qty) >= 1.0:  # 仅当 NetSuite 中确实有 1 件或以上实物库存时，才报差异
-                diffs.append(DiffItem(name, ns_qty, None, "netsuite_only"))
+                diffs.append(DiffItem(disp_name, ns_qty, None, "netsuite_only"))
         else:
             if abs(ex_qty) >= 1.0:  # 同理，如果 Excel 里只有零点几的边角料差额，也忽略
-                diffs.append(DiffItem(name, None, ex_qty, "excel_only"))
+                diffs.append(DiffItem(disp_name, None, ex_qty, "excel_only"))
 
     result = CompareResult(
         location=location,

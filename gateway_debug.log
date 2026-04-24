@@ -1,0 +1,19 @@
+INFO gateway.run: Starting Hermes Gateway...
+INFO gateway.run: Session storage: /Users/michael/.hermes/sessions
+WARNING gateway.run: No user allowlists configured. All unauthorized users will be denied. Set GATEWAY_ALLOW_ALL_USERS=true in ~/.hermes/.env to allow open access, or configure platform allowlists (e.g., TELEGRAM_ALLOWED_USERS=your_id).
+WARNING gateway.run: No messaging platforms enabled.
+INFO gateway.run: Gateway will continue running for cron job execution.
+INFO gateway.run: 1 hook(s) loaded
+INFO gateway.run: Channel directory built: 0 target(s)
+INFO gateway.run: Press Ctrl+C to stop
+INFO gateway.run: Cron ticker started (interval=60s)
+INFO gateway.run: Stopping gateway...
+INFO gateway.run: Gateway stopped
+INFO gateway.run: Cron ticker stopped
+┌─────────────────────────────────────────────────────────┐
+│           ⚕ Hermes Gateway Starting...                 │
+├─────────────────────────────────────────────────────────┤
+│  Messaging platforms + cron scheduler                    │
+│  Press Ctrl+C to stop                                   │
+└─────────────────────────────────────────────────────────┘
+

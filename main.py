@@ -19,9 +19,10 @@ import yaml
 
 import netsuite_client
 import sheets_reader
-import wps_reader
+import feishu_reader
 import comparator
 import feishu_notifier
+import feishu_writer
 
 # 配置日志
 logging.basicConfig(
@@ -69,11 +70,11 @@ def run(config: dict, dry_run: bool = False, china_only: bool = False, italy_onl
         )
         results.append(italy_result)
 
-    # 3. 对比中国库存 (WPS Docs)
+    # 3. 对比中国库存 (Feishu Bitable)
     if not italy_only:
         logger.info("-" * 60)
-        logger.info("Comparing China inventory (WPS Docs)...")
-        china_excel = wps_reader.read_inventory(config)
+        logger.info("Comparing China inventory (Feishu Base)...")
+        china_excel = feishu_reader.read_inventory(config)
         china_result = comparator.compare(
             netsuite_inv=ns_inventory.get(china_loc, {}),
             excel_inv=china_excel,
@@ -103,40 +104,38 @@ def run(config: dict, dry_run: bool = False, china_only: bool = False, italy_onl
                 diff_label = {"mismatch": "数量不一致", "netsuite_only": "只在NS存在", "excel_only": "只在Excel存在"}[d.diff_type]
                 print(f"    [{diff_label}] {d.name}: NS={ns_str}, Excel={ex_str}  (Delta={fmt_qty(d.difference)})")
 
-    # 5. 导出为本地 Excel 报告
+    # 5. 导出为本地 Excel 报告（按仓库分别导出）
     try:
         import datetime
         from openpyxl import Workbook
 
         date_str = datetime.datetime.now().strftime("%Y%m%d")
-        
-        # 用不同后缀标识文件
-        file_suffix = ""
-        if italy_only and not china_only:
-            file_suffix = "_Italy"
-        elif china_only and not italy_only:
-            file_suffix = "_China"
-            
-        report_filename = f"inventory_diff{file_suffix}_{date_str}.xlsx"
-        
-        wb = Workbook()
-        ws = wb.active
-        
-        # 表格名字和表头统一设为中英双语或纯英文，以适应意大利主管查看
-        ws.title = "Diff Report"
-        ws.append(["Location", "Status", "SKU", "NS Qty", "Excel Qty", "Delta(NS-Excel)"])
-        
-        has_data = False
+
+        has_any_data = False
         for r in results:
             if not r.has_diffs:
                 continue
                 
+            has_any_data = True
+            
+            # 判断文件名后缀
+            if "italy" in r.location.lower() or "意大利" in r.location:
+                file_suffix = "italy"
+            else:
+                file_suffix = "china"
+                
+            report_filename = f"inventory_diff_{file_suffix}_{date_str}.xlsx"
+            
+            wb = Workbook()
+            ws = wb.active
+            
+            ws.title = "Diff Report"
+            ws.append(["Location", "Status", "SKU", "NS Qty", "Excel Qty", "Delta(NS-Excel)"])
+            
             sorted_diffs = sorted(r.diffs, key=lambda x: {"mismatch": 0, "excel_only": 1, "netsuite_only": 2}[x.diff_type])
             for d in sorted_diffs:
-                has_data = True
-                
-                # 判断如果仓库名字里有 Italy，则输出英文状态
-                if "Italy" in r.location or "italy" in r.location.lower():
+                # 判断表头和状态标签语言
+                if "italy" in r.location.lower() or "意大利" in r.location:
                     diff_label = {"mismatch": "Qty Mismatch", "netsuite_only": "Only in NS", "excel_only": "Only in Excel"}[d.diff_type]
                 else:
                     diff_label = {"mismatch": "数量不一致", "netsuite_only": "只在NS存在", "excel_only": "只在Excel存在"}[d.diff_type]
@@ -149,20 +148,24 @@ def run(config: dict, dry_run: bool = False, china_only: bool = False, italy_onl
                     d.excel_qty if d.excel_qty is not None else "N/A",
                     d.difference
                 ])
-                
-        if has_data:
+            
             ws.column_dimensions['A'].width = 18
             ws.column_dimensions['B'].width = 15
             ws.column_dimensions['C'].width = 25
             wb.save(report_filename)
-            logger.info(f"💾 本地差异报告已保存至: {report_filename}")
-        else:
+            logger.info(f"💾 本地 {file_suffix} 差异报告已保存至: {report_filename}")
+            
+        if not has_any_data:
             logger.info("🎉 没有任何差异，无需生成 Excel 报告文件。")
             
     except Exception as e:
         logger.error(f"生成本地 Excel 报告失败: {e}")
 
-    # 6. 推送到飞书
+    # 6. 推送结果到飞书云表格
+    if not dry_run:
+        feishu_writer.write_results_to_bitable(config, results)
+
+    # 7. 推送到飞书群机器人
     if dry_run:
         logger.info("Dry-run mode: skipping Feishu notification")
     else:

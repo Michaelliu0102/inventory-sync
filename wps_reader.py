@@ -45,35 +45,37 @@ def read_inventory(config: dict) -> dict:
 
     # 加载 xlsx
     wb = load_workbook(filename=file_bytes, read_only=True, data_only=True)
-    ws = wb.active
-
-    logger.info(f"Reading WPS sheet: {ws.title}")
 
     inventory = {}
-    for i, row in enumerate(ws.iter_rows(min_row=1, values_only=True), start=1):
-        if i <= header_rows:
-            continue
+    
+    # 遍历该 Excel 文件中的所有 sheet 表格
+    for ws in wb.worksheets:
+        logger.info(f"Reading WPS sheet: {ws.title}")
 
-        # 列号从 1 开始
-        if len(row) < max(name_col, qty_col):
-            continue
+        for i, row in enumerate(ws.iter_rows(min_row=1, values_only=True), start=1):
+            if i <= header_rows:
+                continue
 
-        name = row[name_col - 1]
-        qty_raw = row[qty_col - 1]
+            # 列号从 1 开始
+            if len(row) < max(name_col, qty_col):
+                continue
 
-        if not name:
-            continue
+            name = row[name_col - 1]
+            qty_raw = row[qty_col - 1]
 
-        name = str(name).strip()
+            if not name:
+                continue
 
-        try:
-            quantity = float(str(qty_raw).replace(",", "").strip()) if qty_raw is not None else 0
-        except (ValueError, TypeError):
-            logger.warning(f"  Row {i}: cannot parse quantity '{qty_raw}' for '{name}', skipping")
-            continue
+            name = str(name).strip()
 
-        inventory[name] = inventory.get(name, 0) + quantity
+            try:
+                quantity = float(str(qty_raw).replace(",", "").strip()) if qty_raw is not None else 0
+            except (ValueError, TypeError):
+                logger.warning(f"  Row {i} in sheet '{ws.title}': cannot parse quantity '{qty_raw}' for '{name}', skipping")
+                continue
+
+            inventory[name] = inventory.get(name, 0) + quantity
 
     wb.close()
-    logger.info(f"  WPS Docs: {len(inventory)} SKUs loaded")
+    logger.info(f"  WPS Docs: {len(inventory)} SKUs loaded across all sheets")
     return inventory
