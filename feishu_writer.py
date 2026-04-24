@@ -35,11 +35,12 @@ def write_results_to_bitable(config: dict, results):
         if not r.has_diffs:
             continue
             
+        # 根据用户要求，过滤掉意大利的数据，只把中国数据倒进飞书多维表格
+        if "italy" in r.location.lower() or "意大利" in r.location:
+            continue
+            
         for d in r.diffs:
-            if "italy" in r.location.lower() or "意大利" in r.location:
-                diff_label = {"mismatch": "Qty Mismatch", "netsuite_only": "Only in NS", "excel_only": "Only in Excel"}[d.diff_type]
-            else:
-                diff_label = {"mismatch": "数量不一致", "netsuite_only": "只在NS存在", "excel_only": "只在Excel存在"}[d.diff_type]
+            diff_label = {"mismatch": "数量不一致", "netsuite_only": "只在NS存在", "excel_only": "只在Excel存在"}[d.diff_type]
 
             records_to_insert.append({
                 "fields": {
